@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="b053706b-d6e6-4b32-b8cc-a4ff2e0b881a" >
+		<http:request-connection host="www.mulesoft.com" port="443" protocol="HTTPS"/>
+	</http:request-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="f9c8e8fb-cabf-4a10-b0d0-831d0094fd83" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="21be1708-b746-4f81-951b-1ac73aa15e10" >
+		<file:connection workingDir="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-sapi/src/main/resources/input" />
+	</file:config>
+	<flow name="large-file-sapiFlow" doc:id="202bbc6e-8ad7-4e64-a923-b0519eb8b40f" >
+		<http:listener doc:name="Listener" doc:id="e6fabea1-ea28-4006-82a8-cd81b0c3aa7b" config-ref="HTTP_Listener_config" path="/largefile"/>
+		<http:request method="GET" doc:name="Request" doc:id="bfb824bf-6c7d-4b7f-82fa-7a0d3f6f0a73" config-ref="HTTP_Request_configuration" path="/ext/solutions/draft/resources/full-load-files.csv.gz" />
+		<compression:extract doc:name="Extract" doc:id="73859c00-fab1-49b0-80f2-df5634a44b45">
+				<compression:extractor>
+					<compression:zip-extractor />
+				</compression:extractor>
+			</compression:extract>
+		<ee:transform doc:name="Transform Message" doc:id="5f1acd46-fa12-46ed-b885-ddbaf17ef6ac">
+				<ee:message>
+				</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="extractPayload" ><![CDATA[%dw 2.0
+output application/java
+---
+payload pluck {
+	fileName: $$,
+	content: $
+}
+
+
+]]></ee:set-variable>
+			</ee:variables>
+			</ee:transform>
+		<foreach doc:name="For Each" doc:id="9dd075aa-1d5f-4d45-8d6d-1a0d6698be4a" collection="#[vars.extractPayload]">
+			<set-variable value="#[payload.fileName]" doc:name="fileName" doc:id="a5d31618-dcfc-4fb1-8621-bf1af7b2a43b" variableName="fileName"/>
+			<ee:transform doc:name="Transform Message" doc:id="cf3b353a-f821-48b2-85d8-b101fbf46d4e" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+read(payload.content,"application/csv")]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<file:write doc:name="Write" doc:id="d1e43511-83d6-48f6-ab2f-afe62a8670f2" config-ref="File_Config" path="#[vars.fileName]">
+			</file:write>
+			</foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="b6d5de1b-52af-4412-808f-b274601cf5a9" message="file written successfully.."/>
+	</flow>
+</mule>
