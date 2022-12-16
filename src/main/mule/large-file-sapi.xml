@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
-	xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
 http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="b053706b-d6e6-4b32-b8cc-a4ff2e0b881a" >
 		<http:request-connection host="www.mulesoft.com" port="443" protocol="HTTPS"/>
 	</http:request-config>
@@ -14,10 +17,18 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
 	<file:config name="File_Config" doc:name="File Config" doc:id="21be1708-b746-4f81-951b-1ac73aa15e10" >
-		<file:connection workingDir="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-sapi/src/main/resources/input" />
+		<file:connection workingDir="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/input" />
 	</file:config>
+	<anypoint-mq:config name="providerAnypointMQConfig" doc:name="Anypoint MQ Config" doc:id="a64589ff-439e-41e6-9eff-51d5e450a808" >
+		<anypoint-mq:connection clientId="4bbc36ed12a24b86b441f2b212f7c854" clientSecret="C9998a584960455495B9B938E94a2490" />
+	</anypoint-mq:config>
 	<flow name="large-file-sapiFlow" doc:id="202bbc6e-8ad7-4e64-a923-b0519eb8b40f" >
 		<http:listener doc:name="Listener" doc:id="e6fabea1-ea28-4006-82a8-cd81b0c3aa7b" config-ref="HTTP_Listener_config" path="/largefile"/>
+		<logger
+			level="INFO"
+			doc:name="ENTRY"
+			doc:id="56cb6d12-01ff-4434-9556-89f26a791684"
+			message="ENTRY: #[flow.name]" />
 		<http:request method="GET" doc:name="Request" doc:id="bfb824bf-6c7d-4b7f-82fa-7a0d3f6f0a73" config-ref="HTTP_Request_configuration" path="/ext/solutions/draft/resources/full-load-files.csv.gz" />
 		<compression:extract doc:name="Extract" doc:id="73859c00-fab1-49b0-80f2-df5634a44b45">
 				<compression:extractor>
@@ -53,6 +64,75 @@ read(payload.content,"application/csv")]]></ee:set-payload>
 			<file:write doc:name="Write" doc:id="d1e43511-83d6-48f6-ab2f-afe62a8670f2" config-ref="File_Config" path="#[vars.fileName]">
 			</file:write>
 			</foreach>
+		
 		<logger level="INFO" doc:name="Logger" doc:id="b6d5de1b-52af-4412-808f-b274601cf5a9" message="file written successfully.."/>
 	</flow>
+	<flow name="large-file-sapiFlow1" doc:id="0989b5c8-fedd-4661-b257-5939afb32ab8" >
+		<http:listener doc:name="Listener" doc:id="a6f9880d-c2dd-461e-a255-8783bacdff8a" config-ref="HTTP_Listener_config" path="/jmspublish"/>
+		<async doc:name="Async" doc:id="9a8baca4-8ae7-4639-84a8-4ed90b49fc08" >
+			<try doc:name="Try" doc:id="116ff8ff-e160-4c9b-906c-dfd5ec876d79" transactionalAction="BEGIN_OR_JOIN">
+				<file:read doc:name="Read" doc:id="bd0ca16a-9fd5-4fae-a4a7-daf59e606a4b" config-ref="File_Config" path="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/input/filesx00.csv" >
+				</file:read>
+				<ee:transform doc:name="Streaming Payload" doc:id="cc4c6589-1cbf-408d-b346-06346603c0df">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+@StreamCapable()
+input payload application/csv
+output application/csv
+---
+
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<foreach doc:name="For Each" doc:id="bbd36202-94e9-4cb1-911e-accdc33caa6a" collection="#[payload]" batchSize="500">
+			<logger level="INFO" doc:name="Payload" doc:id="41aa6c5d-ef0c-49c7-abeb-6331c7212d50" message="#[payload]" />
+			<ee:transform doc:name="CSV To JSON" doc:id="7ead41f1-b985-4da7-a06e-c4a4206b5a04">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ((item,indexOfitem) -> {
+	// "accountdimension.id": item."accountdimension.id"
+																					// "county": item.county[0],
+																					// "state": item.state[0],
+																					// "fips": item.fips[0],
+																					// "cases": item.cases[0] ,
+																					// "deaths": item.deaths[0]
+	"accountdimension.id": item."accountdimension.id"[0],
+	"productdimension.categoryid": item."productdimension.categoryid"[0],
+	"accountdimension.externalid": item."accountdimension.externalid"[0],
+	"promotiondimension.id": item."promotiondimension.id"[0],
+	"productdimension.externalid": item."productdimension.externalid"[0],
+	label: item.label[0],
+	measurecode: item.measurecode[0],
+	"Month-1/2022": item."Month-1/2022"[0],
+	"Month-2/2022": item."Month-2/2022"[0],
+	"Month-3/2022": item."Month-3/2022"[0],
+	"Month-4/2022": item."Month-4/2022"[0],
+	"Month-5/2022": item."Month-5/2022"[0],
+	"Month-6/2022": item."Month-6/2022"[0],
+	"Month-7/2022": item."Month-7/2022"[0],
+	"Month-8/2022": item."Month-8/2022"[0],
+	"Month-9/2022": item."Month-9/2022"[0],
+	"Month-10/2022": item."Month-10/2022"[0],
+	"Month-11/2022": item."Month-11/2022"[0],
+	"Month-12/2022": item."Month-12/2022"[0]
+})]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+					<anypoint-mq:publish doc:name="Publish To Covid19CaseDistributionQueues" doc:id="46b26ead-f47b-4b94-9c02-c56cd4487635" config-ref="providerAnypointMQConfig" destination="Covid19CaseDistributionQueue">
+				</anypoint-mq:publish>
+					
+		</foreach>
+				<file:move doc:name="Move CSV to Archive" doc:id="d95d807e-cac7-4fde-882b-ea1b2262ab02" config-ref="File_Config" renameTo='#[(attributes.fileName splitBy(".")) [0] ++ "-" ++ now() as String {format : "ddMMyyyy-HHmmss"} ++ ".csv"]' sourcePath="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/input/" targetPath="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/archive/" />
+				<logger level="INFO" doc:name="File moved to Archive" doc:id="441e8ca9-f122-470a-83b5-baa6cfd0dc3d" message="File moved to TargetPath:  /Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/archive/" />
+			</try>
+		</async>
+		<logger
+			level="INFO"
+			doc:name="EXIT"
+			doc:id="8583e363-65cf-49f2-bf8b-2a876767041e"
+			message="EXIT: #[flow.name]" />
+	</flow>
+	
 </mule>
