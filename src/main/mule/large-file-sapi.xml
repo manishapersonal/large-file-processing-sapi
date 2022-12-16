@@ -69,7 +69,12 @@ read(payload.content,"application/csv")]]></ee:set-payload>
 	</flow>
 	<flow name="large-file-sapiFlow1" doc:id="0989b5c8-fedd-4661-b257-5939afb32ab8" >
 		<http:listener doc:name="Listener" doc:id="a6f9880d-c2dd-461e-a255-8783bacdff8a" config-ref="HTTP_Listener_config" path="/jmspublish"/>
-		<async doc:name="Async" doc:id="9a8baca4-8ae7-4639-84a8-4ed90b49fc08" >
+		<logger
+			level="INFO"
+			doc:name="ENTRY"
+			doc:id="6b5efe9b-0406-442c-b6e7-b1dd76f7702d"
+			message="ENTRY: #[flow.name]" />
+		<async doc:name="Async" doc:id="9a8baca4-8ae7-4639-84a8-4ed90b49fc08">
 			<try doc:name="Try" doc:id="116ff8ff-e160-4c9b-906c-dfd5ec876d79" transactionalAction="BEGIN_OR_JOIN">
 				<file:read doc:name="Read" doc:id="bd0ca16a-9fd5-4fae-a4a7-daf59e606a4b" config-ref="File_Config" path="/Users/manishachotaliya/Mule_WS_7.14.0/large-file-processing-sapi/src/main/resources/input/filesx00.csv" >
 				</file:read>
